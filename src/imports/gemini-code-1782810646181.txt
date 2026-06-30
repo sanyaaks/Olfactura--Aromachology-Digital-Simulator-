@@ -1,0 +1,28 @@
+Create a clean, modern UI component for a quiz/questionnaire card layout in Figma. 
+
+Design Requirements:
+1. Card Content: Display the following modified questions directly. Do NOT include any question numbers, IDs, or prefixes (like "Q1:" or "1.").
+2. Options Layout: Below each question, display all possible answers as selectable options (using a clean radio button, checkbox, or pill-button container format).
+3. Visual Hierarchy: Ensure a distinct visual separation between the question text (bold, slightly larger) and the answer options (clear, readable, with hover/selected state styling cues).
+4. No Ordering: The questions must stand completely on their own without suggesting a sequence or numbered list.
+
+Please generate the visual layout based on these direct questions and their respective options:
+
+[Insert your questions and options here, for example:
+Question: What is your primary design goal?
+Options: Brand Awareness, User Engagement, Lead Generation, Product Sales
+
+Question: Select your preferred color palette style:
+Options: Warm & Earthy, Cool & Minimal, Vibrant & Bold, Dark Mode / High Contrast]
+
+also Modify the background image container and its gradients to achieve a seamless blend without the middle white fade:
+
+Extend Background Image: Set the background image layer's height or bounding box to extend fully from the top of the section all the way down to the bottom border of the wizard stepper card.
+
+Adjust Linear Gradient Overlays: * Remove the aggressive white gradient/mask that is cutting off the image in the middle.
+
+Instead, apply a single, smooth Linear Gradient overlay directly on top of the image layer.
+
+Set the gradient to go from Top (Transparent / 0% opacity) to Bottom (Solid background color / 100% opacity), ensuring the transition happens smoothly only near the very bottom edge of the card to seamlessly blend into the next section.
+
+Layer Hierarchy: Ensure the text and stepper numbers (1, 2, 3) remain on top of this background layer with high contrast.
