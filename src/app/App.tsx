@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, X, Lock, Eye, EyeOff, ChevronDown, Download, LayoutDashboard } from "lucide-react";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
+import { NeuroRadarChart } from "@/app/components/Charts/NeuroRadarChart";
 
 // Image imports — each used exactly once across all 4 screens
 import kilianImg from "@/imports/Smoking_Hot_-_Smoky_Perfume_-_The_Smokes___KILIAN_PARIS-2.jpg";          // Hero BG (HD)
@@ -326,8 +327,37 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
 // ─── SCREEN 2: Login Modal ────────────────────────────────────────────────────
 function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [showPw, setShowPw] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSubmit = async () => {
+    setErrorMsg("");
+    try {
+      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
+      const body = isSignUp ? { email, password: pw, name, company_name: companyName } : { email, password: pw };
+      
+      const res = await fetch(`http://localhost:3001${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+      if (data.status === 'success') {
+        localStorage.setItem('olfactura_token', data.token);
+        onSuccess();
+      } else {
+        setErrorMsg(data.error || "Authentication failed");
+      }
+    } catch (e) {
+      setErrorMsg("Network error. Please try again.");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -348,11 +378,11 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
         </div>
 
         {/* Right: form */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-8 overflow-y-auto max-h-[90vh]">
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>
-                Corporate Client Access
+                {isSignUp ? "Register Account" : "Corporate Client Access"}
               </h2>
               <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Secure enterprise portal authentication
@@ -363,7 +393,26 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
             </button>
           </div>
 
-          <div className="space-y-5">
+          {errorMsg && (
+            <div className="mb-4 text-xs font-semibold text-red-600 bg-red-100 p-2 rounded">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {isSignUp && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>Full Name</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>Company Name</label>
+                  <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition" />
+                </div>
+              </>
+            )}
+            
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Corporate Client ID / Email
@@ -373,7 +422,7 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
                 placeholder="e.g., developer@unilever.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition"
+                className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               />
             </div>
@@ -387,7 +436,7 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
                   placeholder="••••••••••••"
                   value={pw}
                   onChange={(e) => setPw(e.target.value)}
-                  className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-3 rounded-lg pr-16 focus:outline-none focus:ring-2 focus:ring-ring transition"
+                  className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg pr-16 focus:outline-none focus:ring-2 focus:ring-ring transition"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 />
                 <button
@@ -403,18 +452,18 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col gap-3">
+          <div className="mt-6 flex flex-col gap-3">
             <button
-              onClick={onSuccess}
-              className="w-full bg-primary text-primary-foreground text-sm font-semibold py-3.5 rounded-lg hover:opacity-85 transition-opacity"
+              onClick={handleSubmit}
+              className="w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-lg hover:opacity-85 transition-opacity"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Authenticate & Open Workspace
+              {isSignUp ? "Register Account" : "Authenticate & Open Workspace"}
             </button>
             <div className="text-center">
-              <a href="#" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
-                Request Enterprise Portal Access
-              </a>
+              <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
+                {isSignUp ? "Already have an account? Login" : "Request Enterprise Portal Access"}
+              </button>
             </div>
           </div>
         </div>
@@ -424,7 +473,7 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
 }
 
 // ─── SCREEN 3: Wizard ────────────────────────────────────────────────────────
-function WizardPage({ onSubmit }: { onSubmit: () => void }) {
+function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
   const [phase, setPhase] = useState<Phase>(1);
   const [vehicle, setVehicle] = useState("");
   const [demographic, setDemographic] = useState("");
@@ -435,6 +484,37 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
   const [environment, setEnvironment] = useState("");
   const [lifecycle, setLifecycle] = useState(3);
   const [restrictions, setRestrictions] = useState("");
+  const [sustainability, setSustainability] = useState("");
+  const [baseNotePreference, setBaseNotePreference] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleFinalSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('olfactura_token');
+      const res = await fetch("http://localhost:3001/api/simulate", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          phase1: { vehicle, demographic, priceTier, sustainability },
+          phase2: { claim, emotions, clinical },
+          phase3: { environment, lifecycle, restrictions, baseNotePreference }
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        onSubmit(data.blueprint);
+      } else {
+        onSubmit(null);
+      }
+    } catch (e) {
+      console.error(e);
+      onSubmit(null);
+    }
+  };
 
   const toggleEmotion = (e: string) =>
     setEmotions((prev) => prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]);
@@ -589,7 +669,7 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
                     Who is the target demographic?
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {["18–24 Gen Z", "25–40 Millennial", "40–55 Gen X", "55+ Boomer", "Male", "Female", "Non-binary", "Urban", "Suburban"].map((d) => (
+                    {["18–24 Gen Z", "25–40 Millennial", "40–55 Gen X", "55+ Boomer", "Male", "Female", "Non-binary", "Urban", "Suburban", "High-Income", "Eco-conscious"].map((d) => (
                       <button
                         key={d}
                         onClick={() => setDemographic(d)}
@@ -618,6 +698,29 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
                         onClick={() => setPriceTier(opt)}
                         className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-all ${
                           priceTier === opt
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
+                        }`}
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Q4: Sustainability Priority */}
+                <div className="flex flex-col gap-3">
+                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    What is the sustainability priority?
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {["Upcycled", "Carbon Neutral", "100% Biodegradable", "None"].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setSustainability(opt)}
+                        className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-all ${
+                          sustainability === opt
                             ? "bg-primary text-primary-foreground border-primary shadow-sm"
                             : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
                         }`}
@@ -708,6 +811,11 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
                     ))}
                   </div>
                 </div>
+
+                {/* Live Neuro-Metric Radar */}
+                {(emotions.length > 0 || claim) && (
+                  <NeuroRadarChart emotions={emotions} claim={claim} />
+                )}
               </div>
             )}
 
@@ -775,6 +883,29 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   />
                 </div>
+
+                {/* Q4: Base Note Preference */}
+                <div className="flex flex-col gap-3">
+                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    What is your base note preference?
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {["Woody", "Musky", "Resinous", "Floral", "No Preference"].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setBaseNotePreference(opt)}
+                        className={`px-5 py-2.5 rounded-full text-sm font-medium border transition-all ${
+                          baseNotePreference === opt
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
+                        }`}
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -797,11 +928,12 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
                 </button>
               ) : (
                 <button
-                  onClick={onSubmit}
-                  className="bg-accent text-white text-sm font-semibold px-7 py-2.5 rounded-lg hover:opacity-85 transition-opacity"
+                  onClick={handleFinalSubmit}
+                  disabled={isSubmitting}
+                  className="bg-accent text-white text-sm font-semibold px-7 py-2.5 rounded-lg hover:opacity-85 transition-opacity disabled:opacity-50"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  Submit All Configurations
+                  {isSubmitting ? "Simulating..." : "Submit All Configurations"}
                 </button>
               )}
             </div>
@@ -814,7 +946,7 @@ function WizardPage({ onSubmit }: { onSubmit: () => void }) {
 }
 
 // ─── SCREEN 4: Thank You ──────────────────────────────────────────────────────
-function ThankYouPage({ onReturn }: { onReturn: () => void }) {
+function ThankYouPage({ onReturn, blueprint }: { onReturn: () => void, blueprint?: any }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <NavBar onLogin={() => {}} />
@@ -841,7 +973,7 @@ function ThankYouPage({ onReturn }: { onReturn: () => void }) {
                 className="tracking-widest uppercase mb-5"
                 style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.65rem", color: "rgba(255,220,220,0.55)" }}
               >
-                REF #2406 · {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()}
+                {blueprint?.refId ? `${blueprint.refId} · ` : 'REF #2406 · '} {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()}
               </div>
 
               {/* Success icon */}
@@ -857,11 +989,26 @@ function ThankYouPage({ onReturn }: { onReturn: () => void }) {
                 Brief Successfully Transmitted
               </h1>
               <p
-                className="text-sm leading-relaxed max-w-lg mb-8"
+                className="text-sm leading-relaxed max-w-lg mb-4"
                 style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,220,220,0.72)" }}
               >
                 Thank you for compiling your parameters. Your application constraints have been parsed into a machine-readable specification blueprint and successfully dispatched to the laboratory team for physical compounding.
               </p>
+              
+              {blueprint && blueprint.materials.length > 0 && (
+                <div className="bg-black/30 border border-white/10 rounded-lg p-4 mb-6 w-full max-w-md text-left">
+                  <div className="text-[0.65rem] text-white/50 uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Mono', monospace" }}>Formulation Highlights</div>
+                  {blueprint.materials.map((m: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center mb-1 text-sm">
+                      <span className="text-white/90" style={{ fontFamily: "'Inter', sans-serif" }}>{m.name}</span>
+                      <span className="text-white/60 text-xs" style={{ fontFamily: "'DM Mono', monospace" }}>{m.concentration}</span>
+                    </div>
+                  ))}
+                  <div className="mt-3 text-xs text-white/50" style={{ fontFamily: "'DM Mono', monospace" }}>
+                    CALM: {blueprint.telemetry.calmAlpha} | ENERGY: {blueprint.telemetry.energyBeta}
+                  </div>
+                </div>
+              )}
 
               {/* Security callout */}
               <div className="w-full rounded-xl px-6 py-4 mb-8 flex items-center justify-center gap-3"
@@ -906,6 +1053,7 @@ function ThankYouPage({ onReturn }: { onReturn: () => void }) {
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [showLogin, setShowLogin] = useState(false);
+  const [blueprint, setBlueprint] = useState<any>(null);
 
   return (
     <div className="min-h-screen" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -913,10 +1061,13 @@ export default function App() {
         <HomePage onLogin={() => setShowLogin(true)} onStartWizard={() => setScreen("wizard")} />
       )}
       {screen === "wizard" && (
-        <WizardPage onSubmit={() => setScreen("thankyou")} />
+        <WizardPage onSubmit={(data) => {
+          setBlueprint(data);
+          setScreen("thankyou");
+        }} />
       )}
       {screen === "thankyou" && (
-        <ThankYouPage onReturn={() => setScreen("home")} />
+        <ThankYouPage onReturn={() => setScreen("home")} blueprint={blueprint} />
       )}
       {showLogin && (
         <LoginModal
