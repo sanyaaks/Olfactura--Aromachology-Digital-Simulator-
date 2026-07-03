@@ -28,6 +28,10 @@ const authenticateToken = (req, res, next) => {
 
 app.post('/api/auth/register', async (req, res) => {
   const { email, password, name, company_name } = req.body;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
   try {
     const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
@@ -60,6 +64,10 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
@@ -104,7 +112,7 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       }
     };
 
-    if (phase1.vehicle === 'Roll-On' && phase2.claim === 'Anxiety Relief') {
+    if (phase1.vehicle === 'Roll-On / Pulse-Point Oil' && phase2.claim === 'Anxiety & Stress Reduction') {
       blueprint.materials.push({ name: 'Lavandin Heart', concentration: '45%' });
       blueprint.materials.push({ name: 'Tonka Bean Absolute', concentration: '15%' });
     } else {
@@ -119,7 +127,7 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
     }
 
     if (phase2.emotions.includes("Reassurance & Comfort")) blueprint.telemetry.calmAlpha += 20;
-    if (phase2.claim === "Anxiety Relief") blueprint.telemetry.calmAlpha += 22;
+    if (phase2.claim === "Anxiety & Stress Reduction") blueprint.telemetry.calmAlpha += 22;
 
     const lifecycle = phase3.lifecycle || 3;
     blueprint.volatility.topNotes = 100 - (lifecycle * 15);
@@ -141,11 +149,17 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       // 2. Insert into intake_questionnaire_response
       const qaInserts = [
         [brief_id, 'Q-BR-001', 'Product Vehicle', phase1.vehicle],
-        [brief_id, 'Q-BR-002', 'Target Demographic', phase1.demographic],
-        [brief_id, 'Q-BR-003', 'Retail Price Tier', phase1.priceTier],
-        [brief_id, 'Q-BR-004', 'Sustainability Priority', phase1.sustainability],
+        [brief_id, 'Q-BR-002', 'Target Demographic (Age)', phase1.demographicAge],
+        [brief_id, 'Q-BR-003', 'Target Demographic (Gender)', phase1.demographicGender],
+        [brief_id, 'Q-BR-004', 'Target Demographic (Geo)', phase1.demographicGeo],
+        [brief_id, 'Q-BR-005', 'Retail Price Tier', phase1.priceTier],
         [brief_id, 'Q-SE-004', 'Base Note Preference', phase3.baseNotePreference]
       ];
+      
+      if (phase2.clinical === 'yes' && phase2.clinicalDetails) {
+        qaInserts.push([brief_id, 'Q-NM-003', 'Clinical Documentation Requirements', phase2.clinicalDetails]);
+      }
+
       for (const qa of qaInserts) {
         if (qa[3]) {
           await client.query(
@@ -164,7 +178,7 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       // 4. Insert neuro_metric_objective
       await client.query(
         'INSERT INTO neuro_metric_objective (brief_id, primary_functional_claim, target_emotional_dimension, clinical_defense_required) VALUES ($1, $2, $3, $4)',
-        [brief_id, phase2.claim, phase2.emotions.join(', '), phase2.clinical === 'Yes']
+        [brief_id, phase2.claim, phase2.emotions.join(', '), phase2.clinical === 'yes']
       );
 
       // 5. Insert scent_formulation_blueprint
