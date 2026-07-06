@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, X, Lock, Eye, EyeOff, ChevronDown, Download, LayoutDashboard } from "lucide-react";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import { NeuroRadarChart } from "@/app/components/Charts/NeuroRadarChart";
+import { OptionGrid, MultiSelectOptionGrid, downloadSummaryText, TechQueryPage, FeedbackPage } from "@/app/components/SupportComponents";
 
 // Image imports — each used exactly once across all 4 screens
 import kilianImg from "@/imports/Smoking_Hot_-_Smoky_Perfume_-_The_Smokes___KILIAN_PARIS-2.jpg";          // Hero BG (HD)
@@ -17,7 +18,7 @@ import bемhausImg from "@/imports/8092474327694818.jpg";                      
 import orchidImg from "@/imports/Produtos_Importados_Originais_Victoria_s_Secret____.jpg";                 // Thank You header
 import crimsonBgImg from "@/imports/download__2_.jpg";                                                     // Thank You card background
 
-type Screen = "home" | "wizard" | "thankyou";
+type Screen = "home" | "wizard" | "thankyou" | "tech-query" | "feedback";
 type Phase = 1 | 2 | 3;
 
 // ─── Brand logo component ─────────────────────────────────────────────────────
@@ -41,7 +42,30 @@ function OlfacturaLogo({ light = false }: { light?: boolean }) {
 }
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
-function NavBar({ onLogin, light = false }: { onLogin: () => void; light?: boolean }) {
+function NavBar({ onLogin, user, onLogout, onNavClick, light = false }: {
+  onLogin: () => void;
+  user: any;
+  onLogout: () => void;
+  onNavClick: (anchor: string) => void;
+  light?: boolean;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDropdown]);
+  
   return (
     <header
       className={`w-full border-b sticky top-0 z-40 backdrop-blur-sm ${
@@ -51,32 +75,80 @@ function NavBar({ onLogin, light = false }: { onLogin: () => void; light?: boole
       }`}
     >
       <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
-        <OlfacturaLogo light={light} />
+        <button onClick={() => onNavClick("home")} className="flex flex-col leading-none text-left bg-transparent border-0 cursor-pointer p-0">
+          <OlfacturaLogo light={light} />
+        </button>
         <nav className="hidden md:flex items-center gap-8">
-          {["About", "Support", "Contact Us"].map((link) => (
-            <a
+          {["About", "Support"].map((link) => (
+            <button
               key={link}
-              href={`#${link.toLowerCase().replace(" ", "-")}`}
-              className={`text-sm transition-colors ${
+              onClick={() => onNavClick(link.toLowerCase().replace(" ", "-"))}
+              className={`text-sm cursor-pointer transition-colors font-medium bg-transparent border-0 outline-none ${
                 light ? "text-white/55 hover:text-white" : "text-foreground/60 hover:text-foreground"
               }`}
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {link}
-            </a>
+            </button>
           ))}
         </nav>
-        <button
-          onClick={onLogin}
-          className={`text-sm font-medium px-5 py-2 rounded-lg transition-opacity hover:opacity-80 ${
-            light
-              ? "bg-white/15 text-white border border-white/25 backdrop-blur-sm"
-              : "bg-primary text-primary-foreground"
-          }`}
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          Client Login / Sign In
-        </button>
+        {user ? (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
+                light
+                  ? "bg-white/10 border-white/20 text-white hover:bg-white/25"
+                  : "bg-card border-border text-foreground hover:bg-secondary/80"
+              }`}
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              <div className="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center font-bold text-xs">
+                {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+              </div>
+              <span className="max-w-[120px] truncate">{user.name}</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${showDropdown ? "rotate-180" : ""}`} />
+            </button>
+            
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-[#FAF7F2] border border-border rounded-xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-150 text-foreground">
+                <div className="flex flex-col gap-1 pb-3 border-b border-border">
+                  <span className="text-sm font-bold truncate">{user.name}</span>
+                  <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                  <span className="text-xs text-accent font-semibold mt-1 bg-accent/10 px-2 py-0.5 rounded self-start">
+                    {user.company_name || "Independent Client"}
+                  </span>
+                </div>
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDropdown(false);
+                      onLogout();
+                    }}
+                    className="w-full text-left text-sm font-medium text-red-500 hover:text-red-700 transition-colors py-1.5 cursor-pointer bg-transparent border-0 block"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={onLogin}
+            className={`text-sm font-medium px-5 py-2 rounded-lg transition-opacity hover:opacity-80 cursor-pointer ${
+              light
+                ? "bg-white/15 text-white border border-white/25 backdrop-blur-sm"
+                : "bg-primary text-primary-foreground"
+            }`}
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            Client Login / Sign In
+          </button>
+        )}
       </div>
     </header>
   );
@@ -121,7 +193,14 @@ function Select({ label, options, value, onChange }: {
 }
 
 // ─── SCREEN 1: Homepage ───────────────────────────────────────────────────────
-function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWizard: () => void }) {
+function HomePage({ onLogin, onStartWizard, onNavClick, user, onLogout, navigateTo }: {
+  onLogin: () => void;
+  onStartWizard: () => void;
+  onNavClick: (anchor: string) => void;
+  user: any;
+  onLogout: () => void;
+  navigateTo: (hash: string) => void;
+}) {
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
 
@@ -141,7 +220,7 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
 
         {/* Nav on top of hero */}
         <div className="relative z-10">
-          <NavBar onLogin={onLogin} light />
+          <NavBar onLogin={onLogin} user={user} onLogout={onLogout} onNavClick={onNavClick} light />
         </div>
 
         {/* Hero content */}
@@ -170,15 +249,15 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
               </p>
               <div className="flex gap-3 flex-wrap">
                 <button
-                  onClick={onLogin}
-                  className="bg-white text-[#0a0a0a] px-7 py-3 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors"
+                  onClick={user ? onStartWizard : onLogin}
+                  className="bg-white text-[#0a0a0a] px-7 py-3 rounded-lg text-sm font-semibold hover:bg-white/90 transition-colors cursor-pointer"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   Access Client Portal
                 </button>
                 <button
                   onClick={onStartWizard}
-                  className="border border-white/30 text-white px-7 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors backdrop-blur-sm"
+                  className="border border-white/30 text-white px-7 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors backdrop-blur-sm cursor-pointer"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   View Demo Workflow
@@ -206,7 +285,7 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
       </div>
 
       {/* ── About: dark, fig image right ── */}
-      <section id="about" className="relative bg-[#100A14]">
+      <section id="about" className="relative bg-[#100A14] scroll-mt-16">
         <div className="grid md:grid-cols-2 min-h-[65vh]">
           <div className="flex flex-col justify-center px-10 lg:px-16 py-16 z-10">
             <div className="text-[0.68rem] font-medium tracking-[0.18em] text-white/60 uppercase mb-5" style={{ fontFamily: "'DM Mono', monospace" }}>
@@ -253,7 +332,7 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
 
       {/* ── Compound ticker strip ── */}
       <div className="bg-[#0d0d0d] border-y border-white/5 py-3 overflow-hidden">
-        <div className="flex gap-12 items-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'DM Mono', monospace", fontSize: "0.68rem", letterSpacing: "0.15em" }}>
+        <div className="flex gap-12 items-center" style={{ color: "#ffffff", fontFamily: "'DM Mono', monospace", fontSize: "0.68rem", letterSpacing: "0.15em" }}>
           {["Linalool · CAS 78-70-6", "Geraniol · CAS 106-24-1", "β-Caryophyllene · CAS 87-44-5", "Citronellol · CAS 106-22-9", "Eugenol · CAS 97-53-0", "Linalool · CAS 78-70-6", "Geraniol · CAS 106-24-1"].map((t, i) => (
             <span key={i} className="whitespace-nowrap uppercase">{t}</span>
           ))}
@@ -283,7 +362,8 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
                 Reach our technical team for platform configuration, API access, and data integration queries. Response SLA: 4 business hours.
               </p>
               <button
-                className="self-start border border-white/25 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => navigateTo("#/tech-query")}
+                className="self-start border border-white/25 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 Submit Technical Inquiry
@@ -310,7 +390,8 @@ function HomePage({ onLogin, onStartWizard }: { onLogin: () => void; onStartWiza
                 Share structured feedback on compound recommendations, simulation outputs, and platform UX. Your input drives model refinements.
               </p>
               <button
-                className="self-start border border-white/25 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => navigateTo("#/feedback")}
+                className="self-start border border-white/25 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 Open Feedback Portal
@@ -343,6 +424,14 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
     if (!emailRegex.test(email)) {
       setErrorMsg("Please enter a valid email address.");
       return;
+    }
+
+    if (isSignUp) {
+      const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/;
+      if (!pw.match(pwRegex)) {
+        setErrorMsg("Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character, with a minimum length of 6 characters.");
+        return;
+      }
     }
 
     try {
@@ -386,23 +475,23 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
         </div>
 
         {/* Right: form */}
-        <div className="flex-1 p-8 overflow-y-auto max-h-[90vh]">
+        <div className="flex-1 p-8 overflow-y-auto max-h-[90vh] text-foreground">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h2 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {isSignUp ? "Register Account" : "Corporate Client Access"}
               </h2>
               <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Secure enterprise portal authentication
               </p>
             </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1 mt-1">
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1 mt-1 cursor-pointer bg-transparent border-0">
               <X size={18} />
             </button>
           </div>
 
           {errorMsg && (
-            <div className="mb-4 text-xs font-semibold text-red-600 bg-red-100 p-2 rounded">
+            <div className="mb-4 text-xs font-semibold text-red-600 bg-red-100 p-3 rounded-lg border border-red-200">
               {errorMsg}
             </div>
           )}
@@ -411,18 +500,18 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
             {isSignUp && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>Full Name</label>
+                  <label className="text-sm font-medium">Full Name</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>Company Name</label>
+                  <label className="text-sm font-medium">Company Name</label>
                   <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="w-full bg-[#EDE7DC] border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring transition" />
                 </div>
               </>
             )}
             
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+              <label className="text-sm font-medium">
                 Corporate Client ID / Email
               </label>
               <input
@@ -435,7 +524,7 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+              <label className="text-sm font-medium">
                 Secure Access Password
               </label>
               <div className="relative">
@@ -450,26 +539,31 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0"
                   style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   {showPw ? <EyeOff size={13} /> : <Eye size={13} />}
                   {showPw ? "Hide" : "Show"}
                 </button>
               </div>
+              {isSignUp && (
+                <span className="text-[0.7rem] text-muted-foreground leading-snug">
+                  Must be at least 6 characters, with 1 uppercase, 1 lowercase, 1 digit, and 1 special symbol.
+                </span>
+              )}
             </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
             <button
               onClick={handleSubmit}
-              className="w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-lg hover:opacity-85 transition-opacity"
+              className="w-full bg-primary text-primary-foreground text-sm font-semibold py-3 rounded-lg hover:opacity-85 transition-opacity cursor-pointer border-0"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {isSignUp ? "Register Account" : "Authenticate & Open Workspace"}
             </button>
             <div className="text-center">
-              <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>
+              <button onClick={() => setIsSignUp(!isSignUp)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors cursor-pointer bg-transparent border-0" style={{ fontFamily: "'Inter', sans-serif" }}>
                 {isSignUp ? "Already have an account? Login" : "Request Enterprise Portal Access"}
               </button>
             </div>
@@ -481,37 +575,66 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
 }
 
 // ─── SCREEN 3: Wizard ────────────────────────────────────────────────────────
-function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
-  const [phase, setPhase] = useState<Phase>(1);
-  
-  // Phase 1
-  const [vehicle, setVehicle] = useState("");
-  const [vehicleOther, setVehicleOther] = useState("");
-  const [demographicAge, setDemographicAge] = useState("");
-  const [demographicAgeOther, setDemographicAgeOther] = useState("");
-  const [demographicGender, setDemographicGender] = useState("");
-  const [demographicGenderOther, setDemographicGenderOther] = useState("");
-  const [demographicGeo, setDemographicGeo] = useState("");
-  const [demographicGeoOther, setDemographicGeoOther] = useState("");
-  const [priceTier, setPriceTier] = useState("");
-  const [priceTierOther, setPriceTierOther] = useState("");
-  
-  // Phase 2
-  const [claim, setClaim] = useState("");
-  const [claimOther, setClaimOther] = useState("");
-  const [emotions, setEmotions] = useState<string[]>([]);
-  const [emotionsOther, setEmotionsOther] = useState("");
-  const [clinical, setClinical] = useState("");
-  const [clinicalDetails, setClinicalDetails] = useState("");
-  
-  // Phase 3
-  const [environment, setEnvironment] = useState("");
-  const [environmentOther, setEnvironmentOther] = useState("");
-  const [lifecycle, setLifecycle] = useState(3);
-  const [restrictions, setRestrictions] = useState("");
-  const [baseNotePreference, setBaseNotePreference] = useState("");
-  const [baseNotePreferenceOther, setBaseNotePreferenceOther] = useState("");
-  
+// ─── SCREEN 3: Wizard ────────────────────────────────────────────────────────
+function WizardPage({
+  onSubmit,
+  user,
+  onLogout,
+  phase,
+  setPhase,
+  vehicle, setVehicle,
+  vehicleOther, setVehicleOther,
+  demographicAge, setDemographicAge,
+  demographicAgeOther, setDemographicAgeOther,
+  demographicGender, setDemographicGender,
+  demographicGenderOther, setDemographicGenderOther,
+  demographicGeo, setDemographicGeo,
+  demographicGeoOther, setDemographicGeoOther,
+  priceTier, setPriceTier,
+  priceTierOther, setPriceTierOther,
+  claim, setClaim,
+  claimOther, setClaimOther,
+  emotions, setEmotions,
+  emotionsOther, setEmotionsOther,
+  clinical, setClinical,
+  clinicalDetails, setClinicalDetails,
+  environment, setEnvironment,
+  environmentOther, setEnvironmentOther,
+  lifecycle, setLifecycle,
+  restrictions, setRestrictions,
+  baseNotePreference, setBaseNotePreference,
+  baseNotePreferenceOther, setBaseNotePreferenceOther,
+  navigateTo
+}: {
+  onSubmit: (blueprint: any) => void;
+  user: any;
+  onLogout: () => void;
+  phase: Phase;
+  setPhase: React.Dispatch<React.SetStateAction<Phase>>;
+  vehicle: string; setVehicle: (v: string) => void;
+  vehicleOther: string; setVehicleOther: (v: string) => void;
+  demographicAge: string; setDemographicAge: (v: string) => void;
+  demographicAgeOther: string; setDemographicAgeOther: (v: string) => void;
+  demographicGender: string; setDemographicGender: (v: string) => void;
+  demographicGenderOther: string; setDemographicGenderOther: (v: string) => void;
+  demographicGeo: string; setDemographicGeo: (v: string) => void;
+  demographicGeoOther: string; setDemographicGeoOther: (v: string) => void;
+  priceTier: string; setPriceTier: (v: string) => void;
+  priceTierOther: string; setPriceTierOther: (v: string) => void;
+  claim: string; setClaim: (v: string) => void;
+  claimOther: string; setClaimOther: (v: string) => void;
+  emotions: string[]; setEmotions: React.Dispatch<React.SetStateAction<string[]>>;
+  emotionsOther: string; setEmotionsOther: (v: string) => void;
+  clinical: string; setClinical: (v: string) => void;
+  clinicalDetails: string; setClinicalDetails: (v: string) => void;
+  environment: string; setEnvironment: (v: string) => void;
+  environmentOther: string; setEnvironmentOther: (v: string) => void;
+  lifecycle: number; setLifecycle: (v: number) => void;
+  restrictions: string; setRestrictions: (v: string) => void;
+  baseNotePreference: string; setBaseNotePreference: (v: string) => void;
+  baseNotePreferenceOther: string; setBaseNotePreferenceOther: (v: string) => void;
+  navigateTo: (hash: string) => void;
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFinalSubmit = async () => {
@@ -555,6 +678,8 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
     } catch (e) {
       console.error(e);
       onSubmit(null);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -576,62 +701,57 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <NavBar onLogin={() => {}} />
+      <NavBar onLogin={() => {}} user={user} onLogout={onLogout} onNavClick={(anchor) => navigateTo(`#/${anchor}`)} />
 
-      {/* Banner + stepper merged — single image block, seamless gradient */}
-      <div className="relative overflow-hidden">
-        {/* Image spans the full banner+stepper height */}
-        <div className="absolute inset-0">
-          <ImageWithFallback
-            src={orangeImg}
-            alt="Orange blossom dripping with nectar — configuration wizard opening"
-            className="w-full h-full object-cover object-[center_25%]"
-          />
-          {/* Single smooth gradient: transparent top → solid background only at bottom edge */}
-          <div className="absolute inset-0" style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.35) 40%, rgba(240,235,225,0.55) 78%, rgba(240,235,225,1) 100%)"
-          }} />
-        </div>
-
+      {/* Banner + stepper — plain background */}
+      <div className="border-b border-border">
         {/* Banner text — above stepper */}
-        <div className="relative z-10 px-8 pt-8 pb-6 max-w-7xl mx-auto">
-          <div className="text-[0.65rem] tracking-widest text-white/65 uppercase mb-0.5" style={{ fontFamily: "'DM Mono', monospace" }}>
+        <div className="px-8 pt-8 pb-4 max-w-7xl mx-auto text-foreground">
+          <div className="text-[0.65rem] tracking-widest text-muted-foreground uppercase mb-0.5" style={{ fontFamily: "'DM Mono', monospace" }}>
             Configuration Wizard
           </div>
-          <h2 className="text-2xl font-bold text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <h2 className="text-2xl font-bold text-black" style={{ fontFamily: "'Playfair Display', serif" }}>
             Build Your Scent Specification
           </h2>
         </div>
 
-        {/* Stepper — sits on top of same image, transparent bg */}
-        <div className="relative z-10 border-b border-white/20 py-5 px-8">
+        {/* Stepper — transparent bg */}
+        <div className="py-5 px-8">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-start justify-between relative">
-              <div className="absolute left-5 right-5 top-5 h-px bg-white/25 z-0" />
+              <div className="absolute left-5 right-5 top-5 h-px bg-border z-0" />
               {phases.map((p) => {
                 const done = phase > p.num;
                 const active = phase === p.num;
                 return (
-                  <div key={p.num} className="relative z-10 flex flex-col items-center gap-2 flex-1">
+                  <button
+                    key={p.num}
+                    onClick={() => {
+                      if (p.num < phase || (p.num === 2 && vehicle) || (p.num === 3 && claim && emotions.length > 0)) {
+                        navigateTo(`#/wizard/phase-${p.num}`);
+                      }
+                    }}
+                    className="relative z-10 flex flex-col items-center gap-2 flex-1 bg-transparent border-none outline-none cursor-pointer"
+                  >
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all shadow-md ${
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all shadow-sm ${
                         done ? "bg-accent border-accent text-white"
-                        : active ? "bg-white border-white text-primary"
-                        : "bg-white/20 border-white/40 text-white backdrop-blur-sm"
+                        : active ? "bg-primary border-primary text-primary-foreground"
+                        : "bg-background border-border text-muted-foreground"
                       }`}
                       style={{ fontFamily: "'DM Mono', monospace" }}
                     >
                       {done ? <Check size={15} /> : p.num}
                     </div>
                     <span
-                      className={`text-xs text-center leading-snug max-w-[120px] font-medium drop-shadow-sm ${
-                        active ? "text-white" : done ? "text-white/90" : "text-white/65"
+                      className={`text-xs text-center leading-snug max-w-[120px] font-medium ${
+                        active ? "text-black font-semibold" : done ? "text-neutral-700" : "text-neutral-400"
                       }`}
                       style={{ fontFamily: "'Inter', sans-serif" }}
                     >
                       {p.label}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -644,7 +764,7 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
         <div className="max-w-5xl mx-auto flex gap-8 items-start">
 
           {/* Sticky sidebar with swapping image */}
-          <div className="hidden lg:block w-52 flex-shrink-0 sticky top-24">
+          <div className="hidden lg:block w-52 flex-shrink-0 sticky top-24 text-foreground">
             <div className="rounded-2xl overflow-hidden h-72 relative border border-border/50 shadow-sm">
               <ImageWithFallback
                 src={sidebarImg}
@@ -673,192 +793,147 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
           </div>
 
           {/* Main form card */}
-          <div className="flex-1 bg-card border border-border rounded-2xl p-10 shadow-sm">
+          <div className="flex-1 bg-card border border-border rounded-2xl p-10 shadow-sm text-foreground">
 
             {phase === 1 && (
               <div className="space-y-8">
                 <div>
                   <div className="text-[0.67rem] font-medium text-muted-foreground uppercase tracking-widest mb-1" style={{ fontFamily: "'DM Mono', monospace" }}>Category 1</div>
-                  <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Brand & Market Constraints</h2>
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Brand & Market Constraints</h2>
                 </div>
 
                 {/* Q1: Product Vehicle */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
-                    1. What is the final consumer product format / medium?
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    1. What is the final consumer product format/medium?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "Roll-On / Pulse-Point Oil", "Cleansing Gel / Body Wash", "Emulsion (Lotion / Cream / Balm)", 
-                      "Candle / Wax Melt", "Room Spray / Mist (Ambient Aersol)", "Reed Diffuser / Passive Aroma Plugin", 
-                      "Solid Perfume / Wax Cologne", "Bath Salts / Bath Bomb / Shower Steamer", 
-                      "Essential Oil Blend / Concentrate (For Ultrasonic Diffusers)", "Scented Body / Face Wipe", "Other"
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setVehicle(opt)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          vehicle === opt
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={[
+                      "Roll-On/Pulse-Point Oil", "Cleansing Gel/Body Wash", "Emulsion (Lotion/Cream/Balm)", 
+                      "Candle/Wax Melt", "Room Spray/Mist (Ambient Aersol)", "Reed Diffuser/Passive Aroma Plugin", 
+                      "Solid Perfume/Wax Cologne", "Bath Salts/Bath Bomb/Shower Steamer", 
+                      "Essential Oil Blend/Concentrate (For Ultrasonic Diffusers)", "Scented Body/Face Wipe", "Other"
+                    ]}
+                    selectedValue={vehicle}
+                    onChange={setVehicle}
+                  />
                   {vehicle === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={vehicleOther}
                       onChange={(e) => setVehicleOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q2: Target Demographic (Age) */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     2. Who is the target demographic by age group?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
+                  <OptionGrid
+                    options={[
                       "Children & Toddlers (Ages 0–12)", "Teens & Adolescents (Ages 13–17)", "Young Adults (Ages 18–24)",
                       "Early-Career Professionals (Ages 25–34)", "Mid-Career Professionals (Ages 35–44)",
-                      "Mature Adults (Ages 45–54)", "Older Adults / Pre-Retirees (Ages 55–64)",
+                      "Mature Adults (Ages 45–54)", "Older Adults/Pre-Retirees (Ages 55–64)",
                       "Senior Demographics (Ages 65+)", "Other"
-                    ].map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDemographicAge(d)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          demographicAge === d
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
+                    ]}
+                    selectedValue={demographicAge}
+                    onChange={setDemographicAge}
+                  />
                   {demographicAge === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={demographicAgeOther}
                       onChange={(e) => setDemographicAgeOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q3: Target Demographic (Gender) */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     3. Who is the target demographic by gender positioning?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "Feminine-Marketed", "Masculine-Marketed", "Unisex / Gender-Neutral", "Other"
-                    ].map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDemographicGender(d)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          demographicGender === d
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={[
+                      "Feminine-Marketed", "Masculine-Marketed", "Unisex/Gender-Neutral", "Other"
+                    ]}
+                    selectedValue={demographicGender}
+                    onChange={setDemographicGender}
+                  />
                   {demographicGender === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={demographicGenderOther}
                       onChange={(e) => setDemographicGenderOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q4: Target Demographic (Geo) */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     4. Who is the target demographic by geographic lifestyle?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "Urban (High-Density / Metro Areas)", "Suburban (Residential / Family Communities)",
-                      "Rural / Countryside", "Coastal / Beachfront Environments",
-                      "Extreme Climate / Alpine Environments", "Nomadic / Frequent Traveler Segment", "Other"
-                    ].map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDemographicGeo(d)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          demographicGeo === d
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={[
+                      "Urban (High-Density/Metro Areas)", "Suburban (Residential/Family Communities)",
+                      "Rural/Countryside", "Coastal/Beachfront Environments",
+                      "Extreme Climate/Alpine Environments", "Nomadic/Frequent Traveler Segment", "Other"
+                    ]}
+                    selectedValue={demographicGeo}
+                    onChange={setDemographicGeo}
+                  />
                   {demographicGeo === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={demographicGeoOther}
                       onChange={(e) => setDemographicGeoOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q5: Retail Price Tier */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     5. What is the intended retail price tier?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "Mass Market (Value / Budget-Friendly)", "Masstige (Mass Prestige / Affordable Premium)",
+                  <OptionGrid
+                    options={[
+                      "Mass Market (Value/Budget-Friendly)", "Masstige (Mass Prestige/Affordable Premium)",
                       "Prestige (Department Store Standard)", "Luxury (High-End Designer)",
-                      "Ultra-Luxury / Niche (Exclusive / Haute Parfumerie)",
+                      "Ultra-Luxury/Niche (Exclusive/Haute Parfumerie)",
                       "Direct-to-Consumer Refillable (Value-Loop Pricing)", "Other"
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setPriceTier(opt)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          priceTier === opt
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                    ]}
+                    selectedValue={priceTier}
+                    onChange={setPriceTier}
+                  />
                   {priceTier === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={priceTierOther}
                       onChange={(e) => setPriceTierOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
@@ -869,110 +944,82 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
               <div className="space-y-8">
                 <div>
                   <div className="text-[0.67rem] font-medium text-muted-foreground uppercase tracking-widest mb-1" style={{ fontFamily: "'DM Mono', monospace" }}>Category 2</div>
-                  <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Neuro-Metric & Wellness Objectives</h2>
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Neuro-Metric & Wellness Objectives</h2>
                 </div>
 
                 {/* Q6: Primary Functional Claim */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     6. What is the primary functional wellness claim?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
+                  <OptionGrid
+                    options={[
                       "Anxiety & Stress Reduction", "Sleep, Rest & Relaxation Optimization",
                       "Focus, Cognitive Clarity & Performance", "Energy, Alertness & Vitality Induction",
-                      "Mood Elevation & Happiness Enhancement", "Appetite Regulation / Mindfulness Support",
-                      "Sensual Arousal & Intimacy Enhancement", "Respiratory Comfort / Clear Breathing",
-                      "Jet Lag / Circadian Rhythm Reset", "Other"
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setClaim(opt)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          claim === opt
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                      "Mood Elevation & Happiness Enhancement", "Appetite Regulation/Mindfulness Support",
+                      "Sensual Arousal & Intimacy Enhancement", "Respiratory Comfort/Clear Breathing",
+                      "Jet Lag/Circadian Rhythm Reset", "Other"
+                    ]}
+                    selectedValue={claim}
+                    onChange={setClaim}
+                  />
                   {claim === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={claimOther}
                       onChange={(e) => setClaimOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q7: Emotional Dimension */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
-                    7. Which emotional dimensions should the scent address? <span className="text-sm font-normal text-muted-foreground">(Select all that apply)</span>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    7. Which emotional dimensions should the scent address?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="space-y-2">
-                    {[
+                  <MultiSelectOptionGrid
+                    options={[
                       "Reassurance & Comfort", "Sustained Grounding & Calm", "Vitality & Energy Induction",
                       "Nostalgia & Familiarity", "Confidence & Empowerment", "Sensuality & Allure",
                       "Joy, Euphoria & Playfulness", "Serenity & Spiritual Connection",
-                      "Security & Shielding / Protection", "Other"
-                    ].map((e) => (
-                      <label
-                        key={e}
-                        onClick={() => toggleEmotion(e)}
-                        className={`flex items-center gap-3 px-5 py-3 rounded-xl border cursor-pointer transition-all ${
-                          emotions.includes(e) ? "border-accent bg-accent/8" : "border-border hover:border-accent/40 hover:bg-secondary/40"
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                          emotions.includes(e) ? "bg-accent border-accent" : "border-border"
-                        }`}>
-                          {emotions.includes(e) && <Check size={12} className="text-white" />}
-                        </div>
-                        <span className="text-sm font-medium text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>{e}</span>
-                      </label>
-                    ))}
-                  </div>
+                      "Security & Shielding/Protection", "Other"
+                    ]}
+                    selectedValues={emotions}
+                    onToggle={toggleEmotion}
+                  />
                   {emotions.includes("Other") && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={emotionsOther}
                       onChange={(e) => setEmotionsOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
                 {/* Q8: Clinical Defense */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     8. Does this formulation require clinical defense documentation?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["yes", "no"].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setClinical(opt)}
-                        className={`flex items-center gap-3 px-5 py-4 rounded-xl border cursor-pointer transition-all text-left ${
-                          clinical === opt ? "border-primary bg-primary/6" : "border-border hover:border-primary/40 hover:bg-secondary/40"
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${clinical === opt ? "border-primary" : "border-border"}`}>
-                          {clinical === opt && <div className="w-2 h-2 rounded-full bg-primary" />}
-                        </div>
-                        <span className="text-sm font-semibold text-foreground capitalize" style={{ fontFamily: "'Inter', sans-serif" }}>{opt}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={["yes", "no"]}
+                    selectedValue={clinical}
+                    onChange={setClinical}
+                    clean={false}
+                  />
                   {clinical === "yes" && (
                     <textarea
                       rows={3}
+                      required
                       placeholder="Please specify your specific clinical documentation requirements..."
                       value={clinicalDetails}
                       onChange={(e) => setClinicalDetails(e.target.value)}
@@ -993,55 +1040,47 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
               <div className="space-y-8">
                 <div>
                   <div className="text-[0.67rem] font-medium text-muted-foreground uppercase tracking-widest mb-1" style={{ fontFamily: "'DM Mono', monospace" }}>Category 3</div>
-                  <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Volatility & Sensory Environment</h2>
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>Volatility & Sensory Environment</h2>
                 </div>
 
                 {/* Q9: Application Environment */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     9. Where and how will the product be applied to release the aroma?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
+                  <OptionGrid
+                    options={[
                       "Passive Ambient Air (Natural Room Evaporation)",
-                      "Topical Friction / Body Heat (Skin Pulse Points)",
-                      "Thermal / Burning Wick Release (Direct Flame Heat)",
-                      "Thermal-Steam / Vapor Release (Hot Water Activation)",
-                      "Ultrasonic Mist / Mechanical Diffusion",
-                      "Textile / Fabric Friction (Micro-encapsulated Scent)",
+                      "Topical Friction/Body Heat (Skin Pulse Points)",
+                      "Thermal/Burning Wick Release (Direct Flame Heat)",
+                      "Thermal-Steam/Vapor Release (Hot Water Activation)",
+                      "Ultrasonic Mist/Mechanical Diffusion",
+                      "Textile/Fabric Friction (Micro-encapsulated Scent)",
                       "Rinse-off Agitation (Lathering with Water)",
-                      "Internal Inhalation (Direct Nasal Inhaler / Stick)",
+                      "Internal Inhalation (Direct Nasal Inhaler/Stick)",
                       "Other"
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setEnvironment(opt)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          environment === opt
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                    ]}
+                    selectedValue={environment}
+                    onChange={setEnvironment}
+                  />
                   {environment === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={environmentOther}
                       onChange={(e) => setEnvironmentOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
 
-                {/* Q2: Sensory Lifecycle */}
+                {/* Q10: Sensory Lifecycle */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
-                    What is the desired scent lifecycle behaviour?
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    10. What is the desired scent lifecycle behaviour?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
                   <div className="bg-background border border-border rounded-xl px-5 py-5">
                     <input
@@ -1058,13 +1097,15 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
                   </div>
                 </div>
 
-                {/* Q3: Olfactive Restrictions */}
+                {/* Q11: Olfactive Restrictions */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
-                    Are there any olfactive or compliance restrictions?
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    11. Are there any olfactive or compliance restrictions?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
                   <textarea
                     rows={4}
+                    required
                     placeholder="e.g., ECOCERT, 100% Biodegradable, Specific Floral/Woody exclusions…"
                     value={restrictions}
                     onChange={(e) => setRestrictions(e.target.value)}
@@ -1075,32 +1116,23 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
 
                 {/* Q12: Base Note Preference */}
                 <div className="flex flex-col gap-3">
-                  <p className="text-base font-semibold text-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <p className="text-base font-semibold flex items-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                     12. What is your base note preference?
+                    <span className="text-red-500 ml-1 font-bold">*</span>
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {["Woody", "Musky", "Resinous", "Floral", "No Preference", "Other"].map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setBaseNotePreference(opt)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                          baseNotePreference === opt
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                        style={{ fontFamily: "'Inter', sans-serif" }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  <OptionGrid
+                    options={["Woody", "Musky", "Resinous", "Floral", "No Preference", "Other"]}
+                    selectedValue={baseNotePreference}
+                    onChange={setBaseNotePreference}
+                  />
                   {baseNotePreference === "Other" && (
                     <input
                       type="text"
                       placeholder="Please specify..."
+                      required
                       value={baseNotePreferenceOther}
                       onChange={(e) => setBaseNotePreferenceOther(e.target.value)}
-                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="mt-2 w-full max-w-sm bg-background border border-border text-foreground text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
@@ -1109,9 +1141,9 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
 
             <div className="flex items-center justify-between mt-10 pt-6 border-t border-border">
               <button
-                onClick={() => phase > 1 && setPhase((p) => (p - 1) as Phase)}
+                onClick={() => phase > 1 && navigateTo(`#/wizard/phase-${phase - 1}`)}
                 disabled={phase === 1}
-                className="border border-border text-foreground text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-secondary/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="border border-border text-foreground text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-secondary/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 Back to Previous Category
@@ -1132,7 +1164,7 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
                   }
                   if (phase === 3) {
                     return environment && (environment !== "Other" || environmentOther) &&
-                           lifecycle && restrictions &&
+                           lifecycle && restrictions.trim() !== "" &&
                            baseNotePreference && (baseNotePreference !== "Other" || baseNotePreferenceOther);
                   }
                   return false;
@@ -1140,9 +1172,9 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
                 
                 return phase < 3 ? (
                   <button
-                    onClick={() => setPhase((p) => (p + 1) as Phase)}
+                    onClick={() => navigateTo(`#/wizard/phase-${phase + 1}`)}
                     disabled={!isPhaseValid()}
-                    className="bg-primary text-primary-foreground text-sm font-medium px-6 py-2.5 rounded-lg hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-primary text-primary-foreground text-sm font-medium px-6 py-2.5 rounded-lg hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     Proceed to Category {phase + 1} →
@@ -1151,7 +1183,7 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
                   <button
                     onClick={handleFinalSubmit}
                     disabled={isSubmitting || !isPhaseValid()}
-                    className="bg-accent text-white text-sm font-semibold px-7 py-2.5 rounded-lg hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-accent text-white text-sm font-semibold px-7 py-2.5 rounded-lg hover:opacity-85 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     {isSubmitting ? "Simulating..." : "Submit All Configurations"}
@@ -1168,10 +1200,22 @@ function WizardPage({ onSubmit }: { onSubmit: (blueprint: any) => void }) {
 }
 
 // ─── SCREEN 4: Thank You ──────────────────────────────────────────────────────
-function ThankYouPage({ onReturn, blueprint }: { onReturn: () => void, blueprint?: any }) {
+function ThankYouPage({
+  onReturn,
+  blueprint,
+  user,
+  onLogout,
+  responses
+}: {
+  onReturn: () => void;
+  blueprint?: any;
+  user: any;
+  onLogout: () => void;
+  responses: any;
+}) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <NavBar onLogin={() => {}} />
+      <NavBar onLogin={() => {}} user={user} onLogout={onLogout} onNavClick={() => onReturn()} />
 
       <div className="flex-1 flex items-center justify-center py-12 px-8">
         <div className="w-full max-w-2xl">
@@ -1221,7 +1265,7 @@ function ThankYouPage({ onReturn, blueprint }: { onReturn: () => void, blueprint
                 <div className="bg-black/30 border border-white/10 rounded-lg p-4 mb-6 w-full max-w-md text-left">
                   <div className="text-[0.65rem] text-white/50 uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Mono', monospace" }}>Formulation Highlights</div>
                   {blueprint.materials.map((m: any, i: number) => (
-                    <div key={i} className="flex justify-between items-center mb-1 text-sm">
+                    <div key={i} className="flex justify-between items-center mb-1 text-sm text-white">
                       <span className="text-white/90" style={{ fontFamily: "'Inter', sans-serif" }}>{m.name}</span>
                       <span className="text-white/60 text-xs" style={{ fontFamily: "'DM Mono', monospace" }}>{m.concentration}</span>
                     </div>
@@ -1247,18 +1291,19 @@ function ThankYouPage({ onReturn, blueprint }: { onReturn: () => void, blueprint
               <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
                 <button
                   onClick={onReturn}
-                  className="px-6 py-3 rounded-lg text-sm font-semibold hover:opacity-85 transition-opacity flex items-center gap-2 justify-center"
+                  className="px-6 py-3 rounded-lg text-sm font-semibold hover:opacity-85 transition-opacity flex items-center gap-2 justify-center cursor-pointer"
                   style={{ fontFamily: "'Inter', sans-serif", background: "rgba(255,255,255,0.15)", color: "#FAF0F0", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(4px)" }}
                 >
                   <LayoutDashboard size={15} />
                   Return to Client Dashboard
                 </button>
                 <button
-                  className="px-6 py-3 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity flex items-center gap-2 justify-center"
-                  style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,220,220,0.75)", border: "1px solid rgba(255,255,255,0.18)" }}
+                  onClick={() => downloadSummaryText(blueprint, responses, user)}
+                  className="px-6 py-3 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity flex items-center gap-2 justify-center cursor-pointer text-white"
+                  style={{ fontFamily: "'Inter', sans-serif", border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.05)" }}
                 >
                   <Download size={15} />
-                  Download PDF Summary Specification Brief
+                  Download Summary Specification Brief
                 </button>
               </div>
             </div>
@@ -1276,25 +1321,247 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [showLogin, setShowLogin] = useState(false);
   const [blueprint, setBlueprint] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+
+  // Lifted Questionnaire states
+  const [phase, setPhase] = useState<Phase>(1);
+  const [vehicle, setVehicle] = useState("");
+  const [vehicleOther, setVehicleOther] = useState("");
+  const [demographicAge, setDemographicAge] = useState("");
+  const [demographicAgeOther, setDemographicAgeOther] = useState("");
+  const [demographicGender, setDemographicGender] = useState("");
+  const [demographicGenderOther, setDemographicGenderOther] = useState("");
+  const [demographicGeo, setDemographicGeo] = useState("");
+  const [demographicGeoOther, setDemographicGeoOther] = useState("");
+  const [priceTier, setPriceTier] = useState("");
+  const [priceTierOther, setPriceTierOther] = useState("");
+  const [claim, setClaim] = useState("");
+  const [claimOther, setClaimOther] = useState("");
+  const [emotions, setEmotions] = useState<string[]>([]);
+  const [emotionsOther, setEmotionsOther] = useState("");
+  const [clinical, setClinical] = useState("");
+  const [clinicalDetails, setClinicalDetails] = useState("");
+  const [environment, setEnvironment] = useState("");
+  const [environmentOther, setEnvironmentOther] = useState("");
+  const [lifecycle, setLifecycle] = useState(3);
+  const [restrictions, setRestrictions] = useState("");
+  const [baseNotePreference, setBaseNotePreference] = useState("");
+  const [baseNotePreferenceOther, setBaseNotePreferenceOther] = useState("");
+
+  // Fetch logged-in user info if token is present
+  const fetchUser = async () => {
+    let token = null;
+    try {
+      token = localStorage.getItem("olfactura_token");
+    } catch (e) {
+      console.warn("localStorage.getItem blocked:", e);
+    }
+    if (!token) return;
+    
+    try {
+      const res = await fetch("http://localhost:3001/api/auth/me", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setUser(data.user);
+      } else {
+        try {
+          localStorage.removeItem("olfactura_token");
+        } catch (err) {}
+        setUser(null);
+      }
+    } catch (e) {
+      console.error("Failed to fetch user:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const handleLogout = () => {
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.warn("localStorage.clear blocked:", e);
+      try {
+        localStorage.removeItem("olfactura_token");
+      } catch (err) {}
+    }
+    
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("sessionStorage.clear blocked:", e);
+    }
+
+    try {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        if (!cookie) continue;
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name.trim() + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      }
+    } catch (e) {
+      console.warn("Cookie clearing blocked:", e);
+    }
+    
+    setUser(null);
+    navigateTo("#/");
+  };
+
+  const handleAuthSuccess = async () => {
+    await fetchUser();
+    setShowLogin(false);
+    navigateTo("#/wizard/phase-1");
+  };
+
+  // Sync state with hash routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash || "#/";
+      
+      if (hash.startsWith("#/wizard/phase-")) {
+        const p = parseInt(hash.replace("#/wizard/phase-", ""), 10);
+        if (p === 1 || p === 2 || p === 3) {
+          setScreen("wizard");
+          setPhase(p as Phase);
+          return;
+        }
+      }
+      
+      switch (hash) {
+        case "#/tech-query":
+          setScreen("tech-query");
+          break;
+        case "#/feedback":
+          setScreen("feedback");
+          break;
+        case "#/thankyou":
+          setScreen("thankyou");
+          break;
+        case "#/":
+        default:
+          setScreen("home");
+          break;
+      }
+    };
+    
+    window.addEventListener("hashchange", handleHashChange);
+    handleHashChange(); // Sync initial load
+    
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const navigateTo = (hash: string) => {
+    window.location.hash = hash;
+  };
+
+  const handleNavClick = (anchorId: string) => {
+    const performScroll = () => {
+      const el = document.getElementById(anchorId);
+      if (el) {
+        if (anchorId === "about") {
+          const ticker = el.nextElementSibling as HTMLElement;
+          const elTop = el.getBoundingClientRect().top + window.scrollY - 64;
+          if (ticker) {
+            const tickerBottom = ticker.getBoundingClientRect().bottom + window.scrollY;
+            const targetPos = tickerBottom - window.innerHeight;
+            window.scrollTo({ top: Math.max(elTop, targetPos), behavior: "smooth" });
+          } else {
+            window.scrollTo({ top: elTop, behavior: "smooth" });
+          }
+        } else {
+          const offset = 64;
+          const pos = el.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo({ top: pos - offset, behavior: "smooth" });
+        }
+      }
+    };
+
+    if (window.location.hash !== "#/" && window.location.hash !== "") {
+      window.location.hash = "#/";
+      setTimeout(performScroll, 150);
+    } else {
+      performScroll();
+    }
+  };
 
   return (
     <div className="min-h-screen" style={{ fontFamily: "'Inter', sans-serif" }}>
       {screen === "home" && (
-        <HomePage onLogin={() => setShowLogin(true)} onStartWizard={() => setScreen("wizard")} />
+        <HomePage 
+          onLogin={() => setShowLogin(true)} 
+          onStartWizard={() => navigateTo("#/wizard/phase-1")} 
+          onNavClick={handleNavClick} 
+          user={user} 
+          onLogout={handleLogout}
+          navigateTo={navigateTo}
+        />
       )}
       {screen === "wizard" && (
-        <WizardPage onSubmit={(data) => {
-          setBlueprint(data);
-          setScreen("thankyou");
-        }} />
+        <WizardPage 
+          onSubmit={(data) => {
+            setBlueprint(data);
+            navigateTo("#/thankyou");
+          }}
+          user={user}
+          onLogout={handleLogout}
+          phase={phase}
+          setPhase={setPhase}
+          vehicle={vehicle} setVehicle={setVehicle}
+          vehicleOther={vehicleOther} setVehicleOther={setVehicleOther}
+          demographicAge={demographicAge} setDemographicAge={setDemographicAge}
+          demographicAgeOther={demographicAgeOther} setDemographicAgeOther={setDemographicAgeOther}
+          demographicGender={demographicGender} setDemographicGender={setDemographicGender}
+          demographicGenderOther={demographicGenderOther} setDemographicGenderOther={setDemographicGenderOther}
+          demographicGeo={demographicGeo} setDemographicGeo={setDemographicGeo}
+          demographicGeoOther={demographicGeoOther} setDemographicGeoOther={setDemographicGeoOther}
+          priceTier={priceTier} setPriceTier={setPriceTier}
+          priceTierOther={priceTierOther} setPriceTierOther={setPriceTierOther}
+          claim={claim} setClaim={setClaim}
+          claimOther={claimOther} setClaimOther={setClaimOther}
+          emotions={emotions} setEmotions={setEmotions}
+          emotionsOther={emotionsOther} setEmotionsOther={setEmotionsOther}
+          clinical={clinical} setClinical={setClinical}
+          clinicalDetails={clinicalDetails} setClinicalDetails={setClinicalDetails}
+          environment={environment} setEnvironment={setEnvironment}
+          environmentOther={environmentOther} setEnvironmentOther={setEnvironmentOther}
+          lifecycle={lifecycle} setLifecycle={setLifecycle}
+          restrictions={restrictions} setRestrictions={setRestrictions}
+          baseNotePreference={baseNotePreference} setBaseNotePreference={setBaseNotePreference}
+          baseNotePreferenceOther={baseNotePreferenceOther} setBaseNotePreferenceOther={setBaseNotePreferenceOther}
+          navigateTo={navigateTo}
+        />
       )}
       {screen === "thankyou" && (
-        <ThankYouPage onReturn={() => setScreen("home")} blueprint={blueprint} />
+        <ThankYouPage 
+          onReturn={() => navigateTo("#/")} 
+          blueprint={blueprint} 
+          user={user} 
+          onLogout={handleLogout}
+          responses={{
+            vehicle, vehicleOther, demographicAge, demographicAgeOther, demographicGender, demographicGenderOther,
+            demographicGeo, demographicGeoOther, priceTier, priceTierOther, claim, claimOther, emotions, emotionsOther,
+            clinical, clinicalDetails, environment, environmentOther, lifecycle, restrictions, baseNotePreference, baseNotePreferenceOther
+          }}
+        />
+      )}
+      {screen === "tech-query" && (
+        <TechQueryPage user={user} onBack={() => navigateTo("#/")} navBar={<NavBar onLogin={() => setShowLogin(true)} user={user} onLogout={handleLogout} onNavClick={handleNavClick} />} footer={<Footer />} />
+      )}
+      {screen === "feedback" && (
+        <FeedbackPage user={user} onBack={() => navigateTo("#/")} navBar={<NavBar onLogin={() => setShowLogin(true)} user={user} onLogout={handleLogout} onNavClick={handleNavClick} />} footer={<Footer />} />
       )}
       {showLogin && (
         <LoginModal
           onClose={() => setShowLogin(false)}
-          onSuccess={() => { setShowLogin(false); setScreen("wizard"); }}
+          onSuccess={handleAuthSuccess}
         />
       )}
     </div>

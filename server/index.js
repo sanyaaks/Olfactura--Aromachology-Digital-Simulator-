@@ -32,6 +32,14 @@ app.post('/api/auth/register', async (req, res) => {
   if (!email || !emailRegex.test(email)) {
     return res.status(400).json({ error: 'Invalid email format' });
   }
+  
+  // Strict password validation (for new account creation only)
+  const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/;
+  if (!password || !pwRegex.test(password)) {
+    return res.status(400).json({
+      error: 'Password must be at least 6 characters long and contain at least one lowercase letter, one uppercase letter, one number, and one special character.'
+    });
+  }
   try {
     const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
@@ -89,6 +97,26 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Get user profile endpoint
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.user_id, u.name, u.email, u.role, c.company_name, c.market_tier 
+       FROM users u
+       LEFT JOIN company c ON u.company_id = c.company_id
+       WHERE u.user_id = $1`,
+      [req.user.user_id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ status: 'success', user: result.rows[0] });
+  } catch (error) {
+    console.error("Get user profile error:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 // --- SIMULATION & BRIEF CREATION ---
 
@@ -112,7 +140,7 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       }
     };
 
-    if (phase1.vehicle === 'Roll-On / Pulse-Point Oil' && phase2.claim === 'Anxiety & Stress Reduction') {
+    if (phase1.vehicle === 'Roll-On/Pulse-Point Oil' && phase2.claim === 'Anxiety & Stress Reduction') {
       blueprint.materials.push({ name: 'Lavandin Heart', concentration: '45%' });
       blueprint.materials.push({ name: 'Tonka Bean Absolute', concentration: '15%' });
     } else {
@@ -202,6 +230,58 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Simulation error:", error);
     res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Middleware for optional JWT auth (used in support queries and feedback)
+const optionalAuthenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      req.user = null;
+    } else {
+      req.user = user;
+    }
+    next();
+  });
+};
+
+// Submit Technical Query Endpoint
+app.post('/api/support/query', optionalAuthenticateToken, async (req, res) => {
+  const { name, email, subject, urgency, description } = req.body;
+  const user_id = req.user ? req.user.user_id : null;
+  try {
+    await pool.query(
+      'INSERT INTO support_query (user_id, name, email, subject, urgency, description) VALUES ($1, $2, $3, $4, $5, $6)',
+      [user_id, name, email, subject, urgency, description]
+    );
+    res.json({ status: 'success', message: 'Technical query submitted successfully' });
+  } catch (error) {
+    console.error("Submit query error:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Open Feedback Portal Endpoint
+app.post('/api/support/feedback', optionalAuthenticateToken, async (req, res) => {
+  const { name, email, experience_rating, accuracy_rating, details } = req.body;
+  const user_id = req.user ? req.user.user_id : null;
+  try {
+    await pool.query(
+      'INSERT INTO client_feedback (user_id, name, email, experience_rating, accuracy_rating, details) VALUES ($1, $2, $3, $4, $5, $6)',
+      [user_id, name, email, parseInt(experience_rating, 10), parseInt(accuracy_rating, 10), details]
+    );
+    res.json({ status: 'success', message: 'Feedback submitted successfully' });
+  } catch (error) {
+    console.error("Submit feedback error:", error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
