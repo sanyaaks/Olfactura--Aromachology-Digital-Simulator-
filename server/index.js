@@ -169,7 +169,7 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       // 1. Create product_brief
       const briefRes = await client.query(
         'INSERT INTO product_brief (user_id, status) VALUES ($1, $2) RETURNING brief_id',
-        [user_id, 'Completed']
+        [user_id, 'Analysis']
       );
       const brief_id = briefRes.rows[0].brief_id;
       blueprint.refId = `REF-${brief_id.toString().padStart(4, '0')}`; // Override refId to match DB
@@ -230,6 +230,143 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Simulation error:", error);
     res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Get user briefs endpoint
+app.get('/api/briefs', authenticateToken, async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+    const briefsResult = await pool.query(
+      `SELECT pb.brief_id, pb.status, pb.created_at, pb.updated_at, sf.technical_spec_summary
+       FROM product_brief pb
+       LEFT JOIN scent_formulation_blueprint sf ON pb.brief_id = sf.brief_id
+       WHERE pb.user_id = $1
+       ORDER BY pb.created_at DESC`,
+      [user_id]
+    );
+
+    if (briefsResult.rows.length === 0) {
+      return res.json({ status: 'success', briefs: [] });
+    }
+
+    const briefIds = briefsResult.rows.map(b => b.brief_id);
+
+    const qasResult = await pool.query(
+      `SELECT brief_id, question_id, target_metric, response_value 
+       FROM intake_questionnaire_response 
+       WHERE brief_id = ANY($1)`,
+      [briefIds]
+    );
+
+    const vmsResult = await pool.query(
+      `SELECT brief_id, application_environment, sensory_lifecycle_goal, olfactive_restrictions 
+       FROM volatility_matrix 
+       WHERE brief_id = ANY($1)`,
+      [briefIds]
+    );
+
+    const nmsResult = await pool.query(
+      `SELECT brief_id, primary_functional_claim, target_emotional_dimension, clinical_defense_required 
+       FROM neuro_metric_objective 
+       WHERE brief_id = ANY($1)`,
+      [briefIds]
+    );
+
+    // Group data by brief_id
+    const qasMap = {};
+    qasResult.rows.forEach(r => {
+      if (!qasMap[r.brief_id]) qasMap[r.brief_id] = {};
+      if (r.question_id === 'Q-BR-001') qasMap[r.brief_id].vehicle = r.response_value;
+      if (r.question_id === 'Q-BR-002') qasMap[r.brief_id].demographicAge = r.response_value;
+      if (r.question_id === 'Q-BR-003') qasMap[r.brief_id].demographicGender = r.response_value;
+      if (r.question_id === 'Q-BR-004') qasMap[r.brief_id].demographicGeo = r.response_value;
+      if (r.question_id === 'Q-BR-005') qasMap[r.brief_id].priceTier = r.response_value;
+      if (r.question_id === 'Q-SE-004') qasMap[r.brief_id].baseNotePreference = r.response_value;
+      if (r.question_id === 'Q-NM-003') {
+        qasMap[r.brief_id].clinical = 'yes';
+        qasMap[r.brief_id].clinicalDetails = r.response_value;
+      }
+    });
+
+    const vmsMap = {};
+    vmsResult.rows.forEach(r => {
+      vmsMap[r.brief_id] = {
+        environment: r.application_environment,
+        lifecycle: r.sensory_lifecycle_goal,
+        restrictions: r.olfactive_restrictions
+      };
+    });
+
+    const nmsMap = {};
+    nmsResult.rows.forEach(r => {
+      nmsMap[r.brief_id] = {
+        claim: r.primary_functional_claim,
+        emotions: r.target_emotional_dimension ? r.target_emotional_dimension.split(', ') : [],
+        clinical: r.clinical_defense_required ? 'yes' : 'no'
+      };
+    });
+
+    const briefs = [];
+    for (const b of briefsResult.rows) {
+      const elapsed = (new Date().getTime() - new Date(b.created_at).getTime()) / 1000;
+      let computedStatus = 'Analysis';
+      if (elapsed >= 55) {
+        computedStatus = 'Ready';
+      } else if (elapsed >= 35) {
+        computedStatus = 'Review';
+      } else if (elapsed >= 15) {
+        computedStatus = 'Formulating';
+      }
+
+      if (b.status !== computedStatus) {
+        await pool.query('UPDATE product_brief SET status = $1 WHERE brief_id = $2', [computedStatus, b.brief_id]);
+        b.status = computedStatus;
+      }
+
+      const qas = qasMap[b.brief_id] || {};
+      const vm = vmsMap[b.brief_id] || {};
+      const nm = nmsMap[b.brief_id] || {};
+
+      const responses = {
+        vehicle: qas.vehicle || '',
+        vehicleOther: '',
+        demographicAge: qas.demographicAge || '',
+        demographicAgeOther: '',
+        demographicGender: qas.demographicGender || '',
+        demographicGenderOther: '',
+        demographicGeo: qas.demographicGeo || '',
+        demographicGeoOther: '',
+        priceTier: qas.priceTier || '',
+        priceTierOther: '',
+        claim: nm.claim || '',
+        claimOther: '',
+        emotions: nm.emotions || [],
+        emotionsOther: '',
+        clinical: nm.clinical || qas.clinical || 'no',
+        clinicalDetails: qas.clinicalDetails || '',
+        environment: vm.environment || '',
+        environmentOther: '',
+        lifecycle: vm.lifecycle || 3,
+        restrictions: vm.restrictions || '',
+        baseNotePreference: qas.baseNotePreference || '',
+        baseNotePreferenceOther: ''
+      };
+
+      briefs.push({
+        brief_id: b.brief_id,
+        status: b.status,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        technical_spec_summary: b.technical_spec_summary,
+        responses
+      });
+    }
+
+    res.json({ status: 'success', briefs });
+  } catch (error) {
+    console.error("Get briefs error:", error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
