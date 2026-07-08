@@ -1,0 +1,87 @@
+{
+  "emotions": {
+    "Reassurance & Comfort": { "calmAlpha": 20, "energyBeta": 5, "focusGamma": 5 },
+    "Sustained Grounding & Calm": { "calmAlpha": 25, "energyBeta": -5, "focusGamma": 10 },
+    "Vitality & Energy Induction": { "calmAlpha": -10, "energyBeta": 30, "focusGamma": 15 },
+    "Nostalgia & Familiarity": { "calmAlpha": 15, "energyBeta": 0, "focusGamma": -5 },
+    "Confidence & Empowerment": { "calmAlpha": 5, "energyBeta": 20, "focusGamma": 15 },
+    "Sensuality & Allure": { "calmAlpha": 10, "energyBeta": 15, "focusGamma": 5 },
+    "Joy, Euphoria & Playfulness": { "calmAlpha": 10, "energyBeta": 25, "focusGamma": 10 },
+    "Serenity & Spiritual Connection": { "calmAlpha": 30, "energyBeta": -10, "focusGamma": 15 },
+    "Security & Shielding/Protection": { "calmAlpha": 20, "energyBeta": 0, "focusGamma": 5 }
+  },
+  "claims": {
+    "Anxiety & Stress Reduction": {
+      "telemetry": { "calmAlpha": 22, "energyBeta": -10, "focusGamma": 5 },
+      "materials": [
+        { "name": "Lavandin Heart", "concentration": "35%" },
+        { "name": "Chamomile Roman", "concentration": "10%" }
+      ]
+    },
+    "Sleep, Rest & Relaxation Optimization": {
+      "telemetry": { "calmAlpha": 30, "energyBeta": -20, "focusGamma": 0 },
+      "materials": [
+        { "name": "Valerian Root Extract", "concentration": "10%" },
+        { "name": "Clary Sage", "concentration": "20%" }
+      ]
+    },
+    "Focus, Cognitive Clarity & Performance": {
+      "telemetry": { "calmAlpha": 5, "energyBeta": 10, "focusGamma": 25 },
+      "materials": [
+        { "name": "Peppermint Absolute", "concentration": "25%" },
+        { "name": "Rosemary Cineole", "concentration": "15%" }
+      ]
+    },
+    "Energy, Alertness & Vitality Induction": {
+      "telemetry": { "calmAlpha": -5, "energyBeta": 25, "focusGamma": 10 },
+      "materials": [
+        { "name": "Sweet Orange Oil", "concentration": "30%" },
+        { "name": "Grapefruit Terpenes", "concentration": "20%" }
+      ]
+    },
+    "Mood Elevation & Happiness Enhancement": {
+      "telemetry": { "calmAlpha": 15, "energyBeta": 15, "focusGamma": 5 },
+      "materials": [
+        { "name": "Bergamot Essential Oil", "concentration": "25%" },
+        { "name": "Ylang Ylang Extra", "concentration": "15%" }
+      ]
+    },
+    "Appetite Regulation/Mindfulness Support": {
+      "telemetry": { "calmAlpha": 10, "energyBeta": 5, "focusGamma": 15 },
+      "materials": [
+        { "name": "Fennel Sweet", "concentration": "15%" },
+        { "name": "Patchouli Heart", "concentration": "20%" }
+      ]
+    },
+    "Sensual Arousal & Intimacy Enhancement": {
+      "telemetry": { "calmAlpha": 10, "energyBeta": 15, "focusGamma": 5 },
+      "materials": [
+        { "name": "Jasmine Sambac Absolute", "concentration": "15%" },
+        { "name": "Vanilla Bean Extract", "concentration": "20%" }
+      ]
+    },
+    "Respiratory Comfort/Clear Breathing": {
+      "telemetry": { "calmAlpha": 15, "energyBeta": 5, "focusGamma": 10 },
+      "materials": [
+        { "name": "Eucalyptus Globulus", "concentration": "30%" },
+        { "name": "Pine Needle Oil", "concentration": "15%" }
+      ]
+    },
+    "Jet Lag/Circadian Rhythm Reset": {
+      "telemetry": { "calmAlpha": 20, "energyBeta": 10, "focusGamma": 5 },
+      "materials": [
+        { "name": "Neroli Bigarade", "concentration": "20%" },
+        { "name": "Petitgrain", "concentration": "15%" }
+      ]
+    }
+  },
+  "baseNotes": {
+    "Woody": { "name": "Sandalwood Base", "concentration": "20%" },
+    "Musky": { "name": "Musk Ketone", "concentration": "25%" },
+    "Amber/Oriental": { "name": "Ambergris Accord", "concentration": "20%" },
+    "Resinous/Balsamic": { "name": "Frankincense Resinoid", "concentration": "15%" },
+    "Earthy/Mossy": { "name": "Oakmoss Absolute", "concentration": "15%" },
+    "Gourmand/Sweet": { "name": "Vanilla Bourbon", "concentration": "25%" },
+    "Leathery/Smoky": { "name": "Birch Tar Rectified", "concentration": "10%" }
+  }
+}

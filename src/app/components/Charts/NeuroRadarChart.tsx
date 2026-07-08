@@ -24,31 +24,40 @@ interface NeuroRadarChartProps {
   claim: string;
 }
 
+import simData from '@/app/data/telemetryData.json';
+
 export function NeuroRadarChart({ emotions, claim }: NeuroRadarChartProps) {
   // Base state
   let calm = 50;
   let energy = 50;
   let focus = 50;
 
-  // Reactivity based on FR-004 logic
-  if (emotions.includes("Reassurance & Comfort")) calm += 20;
-  if (emotions.includes("Sustained Grounding & Calm")) {
-    calm += 30;
-    focus += 10;
-  }
-  if (emotions.includes("Vitality & Energy Induction")) {
-    energy += 40;
-    focus += 15;
+  // Reactivity based on claim
+  const claimData = (simData.claims as any)[claim];
+  if (claimData) {
+    calm += claimData.telemetry.calmAlpha;
+    energy += claimData.telemetry.energyBeta;
+    focus += claimData.telemetry.focusGamma;
   }
 
-  if (claim === "Anxiety Relief") {
-    calm += 22; // "A calculated +22% alpha-wave activation milestone spike"
-  } else if (claim === "High Focus") {
-    focus += 40;
-    energy += 10;
-  } else if (claim === "Sleep Quality Improvement") {
-    calm += 35;
-    energy -= 20;
+  // Reactivity based on emotions (average of selected)
+  if (emotions && emotions.length > 0) {
+    let alphaSum = 0, betaSum = 0, gammaSum = 0;
+    let count = 0;
+    for (const emotion of emotions) {
+      const emData = (simData.emotions as any)[emotion];
+      if (emData) {
+        alphaSum += emData.calmAlpha;
+        betaSum += emData.energyBeta;
+        gammaSum += emData.focusGamma;
+        count++;
+      }
+    }
+    if (count > 0) {
+      calm += Math.round(alphaSum / count);
+      energy += Math.round(betaSum / count);
+      focus += Math.round(gammaSum / count);
+    }
   }
 
   // Cap values at 100

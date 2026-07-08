@@ -125,7 +125,10 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
     const { phase1, phase2, phase3 } = req.body;
     const user_id = req.user.user_id;
     
-    // FR-002 & FR-004 logic
+    // Load simulation mapping data
+    const fs = await import('fs');
+    const simData = JSON.parse(fs.readFileSync(new URL('../src/app/data/telemetryData.json', import.meta.url)));
+
     const blueprint = {
       refId: `REF-${Math.floor(Math.random() * 10000)}`,
       materials: [],
@@ -140,22 +143,49 @@ app.post('/api/simulate', authenticateToken, async (req, res) => {
       }
     };
 
-    if (phase1.vehicle === 'Roll-On/Pulse-Point Oil' && phase2.claim === 'Anxiety & Stress Reduction') {
-      blueprint.materials.push({ name: 'Lavandin Heart', concentration: '45%' });
-      blueprint.materials.push({ name: 'Tonka Bean Absolute', concentration: '15%' });
+    // Calculate telemetry based on claim and emotions
+    const claimData = simData.claims[phase2.claim];
+    if (claimData) {
+      blueprint.telemetry.calmAlpha += claimData.telemetry.calmAlpha;
+      blueprint.telemetry.energyBeta += claimData.telemetry.energyBeta;
+      blueprint.telemetry.focusGamma += claimData.telemetry.focusGamma;
+      
+      claimData.materials.forEach(m => blueprint.materials.push(m));
     } else {
+      // Fallback
       blueprint.materials.push({ name: 'Linalool (Standard)', concentration: '30%' });
     }
 
-    // New additions based on Q-SE-004 Base Note Preference
-    if (phase3.baseNotePreference === 'Woody') {
-      blueprint.materials.push({ name: 'Sandalwood Base', concentration: '20%' });
-    } else if (phase3.baseNotePreference === 'Musky') {
-      blueprint.materials.push({ name: 'Musk Ketone', concentration: '25%' });
+    // Average telemetry for selected emotions
+    if (phase2.emotions && phase2.emotions.length > 0) {
+      let alphaSum = 0, betaSum = 0, gammaSum = 0;
+      let count = 0;
+      for (const emotion of phase2.emotions) {
+        if (simData.emotions[emotion]) {
+          alphaSum += simData.emotions[emotion].calmAlpha;
+          betaSum += simData.emotions[emotion].energyBeta;
+          gammaSum += simData.emotions[emotion].focusGamma;
+          count++;
+        }
+      }
+      if (count > 0) {
+        blueprint.telemetry.calmAlpha += Math.round(alphaSum / count);
+        blueprint.telemetry.energyBeta += Math.round(betaSum / count);
+        blueprint.telemetry.focusGamma += Math.round(gammaSum / count);
+      }
     }
 
-    if (phase2.emotions.includes("Reassurance & Comfort")) blueprint.telemetry.calmAlpha += 20;
-    if (phase2.claim === "Anxiety & Stress Reduction") blueprint.telemetry.calmAlpha += 22;
+    // Add base note material
+    if (phase3.baseNotePreference && simData.baseNotes[phase3.baseNotePreference]) {
+      blueprint.materials.push(simData.baseNotes[phase3.baseNotePreference]);
+    } else if (phase3.baseNotePreference === "Other") {
+      blueprint.materials.push({ name: phase3.baseNotePreferenceOther || "Custom Base", concentration: "15%" });
+    }
+
+    // Cap telemetry values at 100 and 0
+    blueprint.telemetry.calmAlpha = Math.min(100, Math.max(0, blueprint.telemetry.calmAlpha));
+    blueprint.telemetry.energyBeta = Math.min(100, Math.max(0, blueprint.telemetry.energyBeta));
+    blueprint.telemetry.focusGamma = Math.min(100, Math.max(0, blueprint.telemetry.focusGamma));
 
     const lifecycle = phase3.lifecycle || 3;
     blueprint.volatility.topNotes = 100 - (lifecycle * 15);
