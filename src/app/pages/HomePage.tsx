@@ -43,7 +43,7 @@ export function HomePage({ onLogin, onStartWizard, onNavClick, user, onLogout, n
                 className="text-[0.68rem] font-medium tracking-[0.2em] text-white/40 uppercase mb-7"
                 style={{ fontFamily: "'DM Mono', monospace" }}
               >
-                B2B Enterprise Scientific Platform
+
               </div>
               <h1
                 className="font-bold text-white leading-[1.08] mb-7"
