@@ -407,7 +407,7 @@ export function FeedbackPage({ user, onBack, navBar, footer }: {
       <div className="flex-1 max-w-3xl mx-auto w-full px-8 py-12 text-foreground">
         <div className="mb-8">
           <h1 className="text-3xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>
-            Client Feedback Portal
+            Application Feedback
           </h1>
           <p className="text-sm text-muted-foreground mt-2" style={{ fontFamily: "'Inter', sans-serif" }}>
             Provide structured input to refine compound recommenders and simulation accuracy.
