@@ -5,6 +5,7 @@ import landscapeGif from "@/imports/Paisajes Idílicos.gif";
 import figImg from "@/imports/European_Fig__Fragrance_Oil_for_candle_soap_making_Free_Shipping.jpg";
 import parfumImg from "@/imports/PARFUM_DE_MAISON-_No__1.jpg";
 import smudgeImg from "@/imports/985231164684048.jpg";
+import { CompoundTickerStrip } from "@/app/components/Shared/CompoundTickerStrip";
 
 export function HomePage({ onLogin, onStartWizard, onNavClick, user, onLogout, navigateTo }: {
   onLogin: () => void;
@@ -137,14 +138,8 @@ export function HomePage({ onLogin, onStartWizard, onNavClick, user, onLogout, n
         </div>
       </section>
 
-      {/* ── Compound ticker strip ── */}
-      <div className="bg-[#0d0d0d] border-y border-white/5 py-3 overflow-hidden">
-        <div className="flex gap-12 items-center" style={{ color: "#ffffff", fontFamily: "'DM Mono', monospace", fontSize: "0.68rem", letterSpacing: "0.15em" }}>
-          {["Linalool · CAS 78-70-6", "Geraniol · CAS 106-24-1", "β-Caryophyllene · CAS 87-44-5", "Citronellol · CAS 106-22-9", "Eugenol · CAS 97-53-0", "Linalool · CAS 78-70-6", "Geraniol · CAS 106-24-1"].map((t, i) => (
-            <span key={i} className="whitespace-nowrap uppercase">{t}</span>
-          ))}
-        </div>
-      </div>
+      {/* ── Dynamic Compound Ticker Strip ── */}
+      <CompoundTickerStrip onStartWizard={onStartWizard} />
 
       {/* ── Support Cards ── */}
       <section id="support" className="bg-[#0a0a0a] px-8 py-16">
